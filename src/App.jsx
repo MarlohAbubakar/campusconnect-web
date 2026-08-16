@@ -4,6 +4,7 @@ function App() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetch("http://localhost:5000/api/events")
@@ -21,9 +22,17 @@ function App() {
   const attendEvent = async (id) => {
     const name = window.prompt("Enter your name:");
 
+    
+
     if (!name || !name.trim()) {
       return;
     }
+
+    const filteredEvents = events.filter((event) =>
+  `${event.title} ${event.location} ${event.description}`
+    .toLowerCase()
+    .includes(searchTerm.toLowerCase())
+);
 
     const response = await fetch(
       `http://localhost:5000/api/events/${id}/attend`,
@@ -105,9 +114,19 @@ function App() {
               <h2>Events around campus</h2>
             </div>
 
-            <span className="event-count">
-              {events.length} events
-            </span>
+           <div className="events-tools">
+  <input
+    type="text"
+    className="search-input"
+    placeholder="Search events or locations..."
+    value={searchTerm}
+    onChange={(event) => setSearchTerm(event.target.value)}
+  />
+
+  <span className="event-count">
+    {filteredEvents.length} events
+  </span>
+</div>
           </div>
 
           {message && (
@@ -122,7 +141,7 @@ function App() {
             </div>
           ) : (
             <div className="event-grid">
-              {events.map((event) => (
+              {filteredEvents.map((event) => (
                 <article className="event-card" key={event.id}>
                   <div className="event-date">
                     <span>
