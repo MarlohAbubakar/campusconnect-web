@@ -22,17 +22,9 @@ function App() {
   const attendEvent = async (id) => {
     const name = window.prompt("Enter your name:");
 
-    
-
     if (!name || !name.trim()) {
       return;
     }
-
-    const filteredEvents = events.filter((event) =>
-  `${event.title} ${event.location} ${event.description}`
-    .toLowerCase()
-    .includes(searchTerm.toLowerCase())
-);
 
     const response = await fetch(
       `http://localhost:5000/api/events/${id}/attend`,
@@ -61,6 +53,14 @@ function App() {
       setMessage(data.error || "Unable to record attendance.");
     }
   };
+
+  // Filter events based on the search term.
+  // This must be outside attendEvent() because the JSX uses it.
+  const filteredEvents = events.filter((event) =>
+    `${event.title} ${event.location} ${event.description}`
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="app">
@@ -97,7 +97,9 @@ function App() {
 
           <div className="hero-card">
             <div className="calendar-icon">📅</div>
+
             <h3>Stay Connected</h3>
+
             <p>
               Find events, view details and register your
               attendance in one place.
@@ -114,19 +116,19 @@ function App() {
               <h2>Events around campus</h2>
             </div>
 
-           <div className="events-tools">
-  <input
-    type="text"
-    className="search-input"
-    placeholder="Search events or locations..."
-    value={searchTerm}
-    onChange={(event) => setSearchTerm(event.target.value)}
-  />
+            <div className="events-tools">
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Search events or locations..."
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
 
-  <span className="event-count">
-    {filteredEvents.length} events
-  </span>
-</div>
+              <span className="event-count">
+                {filteredEvents.length} events
+              </span>
+            </div>
           </div>
 
           {message && (
@@ -139,7 +141,7 @@ function App() {
             <div className="loading">
               Loading campus events...
             </div>
-          ) : (
+          ) : filteredEvents.length > 0 ? (
             <div className="event-grid">
               {filteredEvents.map((event) => (
                 <article className="event-card" key={event.id}>
@@ -183,6 +185,16 @@ function App() {
                   </div>
                 </article>
               ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-icon">🔎</div>
+
+              <h3>No events found</h3>
+
+              <p>
+                Try searching for another event, location, or keyword.
+              </p>
             </div>
           )}
         </section>
