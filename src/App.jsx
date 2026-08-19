@@ -5,6 +5,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
   useEffect(() => {
     fetch("http://localhost:5000/api/events")
@@ -19,6 +20,12 @@ function App() {
       });
   }, []);
 
+  const filteredEvents = events.filter((event) =>
+    `${event.title} ${event.location} ${event.description}`
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
+  );
+
   const attendEvent = async (id) => {
     const name = window.prompt("Enter your name:");
 
@@ -26,41 +33,47 @@ function App() {
       return;
     }
 
-    const response = await fetch(
-      `http://localhost:5000/api/events/${id}/attend`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: name.trim(),
-        }),
-      }
-    );
-
-    const data = await response.json();
-
-    if (response.ok) {
-      setMessage(`✓ ${data.message}`);
-
-      setEvents((currentEvents) =>
-        currentEvents.map((event) =>
-          event.id === id ? data.event : event
-        )
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/events/${id}/attend`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: name.trim(),
+          }),
+        }
       );
-    } else {
-      setMessage(data.error || "Unable to record attendance.");
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessage(`✓ ${data.message}`);
+
+        setEvents((currentEvents) =>
+          currentEvents.map((event) =>
+            event.id === id ? data.event : event
+          )
+        );
+
+        setSelectedEvent(data.event);
+      } else {
+        setMessage(data.error || "Unable to record attendance.");
+      }
+    } catch {
+      setMessage("Unable to connect to CampusConnect server.");
     }
   };
 
-  // Filter events based on the search term.
-  // This must be outside attendEvent() because the JSX uses it.
-  const filteredEvents = events.filter((event) =>
-    `${event.title} ${event.location} ${event.description}`
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
+  const openEventDetails = (event) => {
+    setSelectedEvent(event);
+  };
+
+  const closeEventDetails = () => {
+    setSelectedEvent(null);
+  };
 
   return (
     <div className="app">
@@ -122,7 +135,9 @@ function App() {
                 className="search-input"
                 placeholder="Search events or locations..."
                 value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
+                onChange={(event) =>
+                  setSearchTerm(event.target.value)
+                }
               />
 
               <span className="event-count">
@@ -141,10 +156,31 @@ function App() {
             <div className="loading">
               Loading campus events...
             </div>
-          ) : filteredEvents.length > 0 ? (
+          ) : filteredEvents.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">🔎</div>
+
+              <h3>No events found</h3>
+
+              <p>
+                We couldn't find any campus events matching
+                your search.
+              </p>
+
+              <button
+                onClick={() => setSearchTerm("")}
+              >
+                View All Events
+              </button>
+            </div>
+          ) : (
             <div className="event-grid">
               {filteredEvents.map((event) => (
-                <article className="event-card" key={event.id}>
+                <article
+                  className="event-card"
+                  key={event.id}
+                  onClick={() => openEventDetails(event)}
+                >
                   <div className="event-date">
                     <span>
                       {new Date(event.date).toLocaleDateString(
@@ -177,24 +213,27 @@ function App() {
                       </span>
 
                       <button
-                        onClick={() => attendEvent(event.id)}
+                        onClick={(eventClick) => {
+                          eventClick.stopPropagation();
+                          attendEvent(event.id);
+                        }}
                       >
                         I Will Attend
                       </button>
                     </div>
+
+                    <button
+                      className="details-button"
+                      onClick={(eventClick) => {
+                        eventClick.stopPropagation();
+                        openEventDetails(event);
+                      }}
+                    >
+                      View Details →
+                    </button>
                   </div>
                 </article>
               ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <div className="empty-icon">🔎</div>
-
-              <h3>No events found</h3>
-
-              <p>
-                Try searching for another event, location, or keyword.
-              </p>
             </div>
           )}
         </section>
@@ -218,6 +257,69 @@ function App() {
         <strong>CampusConnect</strong>
         <span>Open Source Campus Event Manager</span>
       </footer>
+
+      {selectedEvent && (
+        <div
+          className="modal-overlay"
+          onClick={closeEventDetails}
+        >
+          <div
+            className="event-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              className="modal-close"
+              onClick={closeEventDetails}
+              aria-label="Close event details"
+            >
+              ×
+            </button>
+
+            <div className="modal-date">
+              <span>
+                {new Date(
+                  selectedEvent.date
+                ).toLocaleDateString("en-US", {
+                  month: "long",
+                })}
+              </span>
+
+              <strong>
+                {new Date(selectedEvent.date).getDate()}
+              </strong>
+            </div>
+
+            <p className="eyebrow">EVENT DETAILS</p>
+
+            <h2>{selectedEvent.title}</h2>
+
+            <p className="modal-location">
+              📍 {selectedEvent.location}
+            </p>
+
+            <div className="modal-description">
+              <h3>About this event</h3>
+
+              <p>{selectedEvent.description}</p>
+            </div>
+
+            <div className="modal-attendance">
+              <span>
+                👥 {selectedEvent.attendees.length} students
+                attending
+              </span>
+
+              <button
+                onClick={() =>
+                  attendEvent(selectedEvent.id)
+                }
+              >
+                I Will Attend
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
